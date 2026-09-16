@@ -175,38 +175,48 @@ async function generateInvoice(id){
     const money=n=>'₹ '+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
     const wrap=(v,w,max=20)=>doc.splitTextToSize(safeText(v),w).slice(0,max);
     const drawHeader=()=>{
-      // Compact centered PDS brand mark: a simple tooth outline with PDS inside.
-      const cx=W/2-62, top=11; doc.setDrawColor(...green);doc.setLineWidth(0.8);
-      doc.setFillColor(255,255,255);doc.roundedRect(cx,top,17,21,4,4,'FD');
-      doc.setFont('helvetica','bold');doc.setTextColor(...green);doc.setFontSize(8);text('PDS',cx+8.5,23,{align:'center'});
-      doc.setFont('helvetica','bold');doc.setFontSize(16);text('PRACTICAL DENTAL SOLUTIONS',cx+21,20,{align:'left'});
-      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...ink);text('Quality. Consistency. Affordability.',W/2,26,{align:'center'});
-      doc.setFontSize(7);text('DIGITAL LAB | MATERIAL | EDUCATION',W/2,30,{align:'center'});
-      doc.setDrawColor(...green);doc.setLineWidth(0.6);doc.line(margin,34,W-margin,34);
-      doc.setTextColor(...ink);doc.setFont('helvetica','bold');doc.setFontSize(13);text('TAX INVOICE',W/2,42,{align:'center'});
+      // Compact centered green PDS brand header with a small tooth-style mark.
+      const brandY=12, logoCx=W/2-55, logoTop=10;
+      doc.setDrawColor(...green);doc.setLineWidth(0.7);
+      // Simple tooth outline: rounded crown + two tapered roots.
+      doc.ellipse(logoCx,logoTop+5,7,5,'S');
+      doc.line(logoCx-7,logoTop+5,logoCx-5,logoTop+13);
+      doc.line(logoCx+7,logoTop+5,logoCx+5,logoTop+13);
+      doc.line(logoCx-5,logoTop+13,logoCx-2.2,logoTop+21);
+      doc.line(logoCx+5,logoTop+13,logoCx+2.2,logoTop+21);
+      doc.line(logoCx-2.2,logoTop+21,logoCx,logoTop+16);
+      doc.line(logoCx+2.2,logoTop+21,logoCx,logoTop+16);
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...green);text('PDS',logoCx,logoTop+8,{align:'center'});
+      doc.setFont('helvetica','bold');doc.setFontSize(15.5);doc.setTextColor(...green);
+      text('PRACTICAL DENTAL SOLUTIONS',W/2+8,brandY+7,{align:'center'});
+      doc.setFont('helvetica','normal');doc.setFontSize(7.2);doc.setTextColor(...ink);
+      text('Quality. Consistency. Affordability.',W/2,brandY+14,{align:'center'});
+      doc.setFontSize(6.8);text('DIGITAL LAB | MATERIAL | EDUCATION',W/2,brandY+18,{align:'center'});
+      doc.setDrawColor(...green);doc.setLineWidth(0.55);doc.line(margin,34,W-margin,34);
+      doc.setTextColor(...ink);doc.setFont('helvetica','bold');doc.setFontSize(12.5);text('TAX INVOICE',W/2,42,{align:'center'});
     };
     drawHeader();
     let y=48;
     const drawSellerInvoiceBox=()=>{
-      const h=35;doc.setDrawColor(...line);doc.setLineWidth(0.35);doc.rect(margin,y,contentW,h);doc.line(109,y,109,y+h);
-      doc.setTextColor(...ink);doc.setFont('helvetica','bold');doc.setFontSize(8);text('SOLD BY',margin+3,y+5);text('INVOICE DETAILS',112,y+5);
+      const h=35;doc.setDrawColor(...line);doc.setLineWidth(0.35);doc.rect(margin,y,contentW,h);doc.line(W/2,y,W/2,y+h);
+      doc.setTextColor(...ink);doc.setFont('helvetica','bold');doc.setFontSize(8);text('SOLD BY',margin+3,y+5);text('INVOICE DETAILS',W/2+3,y+5);
       doc.setFont('helvetica','normal');doc.setFontSize(7.3);
       const sl=[seller.name,seller.address,seller.phone,seller.email,seller.gstin?'GSTIN: '+seller.gstin:'',seller.pan?'PAN: '+seller.pan:''].filter(Boolean);
-      let sy=y+10; sl.slice(0,6).forEach(v=>{wrap(v,91,2).forEach((ln,k)=>text(ln,margin+3,sy+k*3.7));sy+=Math.min(7.4,3.7*wrap(v,91,2).length)});
+      let sy=y+10; sl.slice(0,6).forEach(v=>{wrap(v,86,2).forEach((ln,k)=>text(ln,margin+3,sy+k*3.7));sy+=Math.min(7.4,3.7*wrap(v,91,2).length)});
       const invNo=draft?.invoice_number||o.invoice_number||('PDS-INV-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String(o.id).slice(0,6).toUpperCase());
-      [['Invoice No',invNo],['Order No',o.order_number||''],['Invoice Date',invoiceDate.toLocaleDateString('en-IN')],['Order Date',new Date(o.created_at).toLocaleDateString('en-IN')],['Currency','INR'],['Payment',String(invoicePayment).toUpperCase()]].forEach((a,i)=>text(a[0]+': '+a[1],112,y+10+i*5));
+      [['Invoice No',invNo],['Order No',o.order_number||''],['Invoice Date',invoiceDate.toLocaleDateString('en-IN')],['Order Date',new Date(o.created_at).toLocaleDateString('en-IN')],['Currency','INR'],['Payment',String(invoicePayment).toUpperCase()]].forEach((a,i)=>text(a[0]+': '+a[1],W/2+3,y+10+i*5));
       y+=40;
     };
     drawSellerInvoiceBox();
     const drawAddresses=()=>{
       const bill=[invoiceCustomer,invoiceBill,invoiceCity+(invoicePin?' - '+invoicePin:''),invoiceState,invoicePhone].filter(Boolean);
       const ship=[invoiceCustomer,invoiceShip,invoiceCity+(invoicePin?' - '+invoicePin:''),invoiceState,invoicePhone].filter(Boolean);
-      const bl=bill.flatMap(v=>wrap(v,91,3)), sh=ship.flatMap(v=>wrap(v,91,3)); const rows=Math.max(bl.length,sh.length,1); const h=Math.max(27,Math.min(40,9+rows*4));
-      doc.setDrawColor(...line);doc.rect(margin,y,contentW,h);doc.line(109,y,109,y+h);doc.setFont('helvetica','bold');doc.setFontSize(8);text('BILLING ADDRESS',margin+3,y+5);text('SHIPPING ADDRESS',112,y+5);doc.setFont('helvetica','normal');doc.setFontSize(7.3);
-      bl.slice(0,7).forEach((v,i)=>text(v,margin+3,y+11+i*4));sh.slice(0,7).forEach((v,i)=>text(v,112,y+11+i*4));y+=h+5;
+      const bl=bill.flatMap(v=>wrap(v,86,3)), sh=ship.flatMap(v=>wrap(v,86,3)); const rows=Math.max(bl.length,sh.length,1); const h=Math.max(27,Math.min(40,9+rows*4));
+      doc.setDrawColor(...line);doc.rect(margin,y,contentW,h);doc.line(W/2,y,W/2,y+h);doc.setFont('helvetica','bold');doc.setFontSize(8);text('BILLING ADDRESS',margin+3,y+5);text('SHIPPING ADDRESS',W/2+3,y+5);doc.setFont('helvetica','normal');doc.setFontSize(7.3);
+      bl.slice(0,7).forEach((v,i)=>text(v,margin+3,y+11+i*4));sh.slice(0,7).forEach((v,i)=>text(v,W/2+3,y+11+i*4));y+=h+5;
     };
     drawAddresses();
-    const cols=[margin,29,80,104,122,148,173,198]; const heads=['S.No','Description','HSN/SAC','Qty','Unit Price (₹)','Taxable (₹)','GST','Total (₹)'];
+    const cols=[margin,29,76,101,116,141,164,181,198]; const heads=['S.No','Description','HSN/SAC','Qty','Unit Price (₹)','Taxable (₹)','GST','Total (₹)'];
     const widths=cols.slice(1).map((v,i)=>v-cols[i]);
     const header=()=>{doc.setFillColor(236,240,242);doc.setDrawColor(...line);doc.rect(margin,y,contentW,8,'FD');doc.setFont('helvetica','bold');doc.setFontSize(6.6);heads.forEach((h,i)=>text(h,cols[i]+2,y+5));};
     header(); let rowY=y+8,subtotal=0,tax=0;
@@ -222,9 +232,9 @@ async function generateInvoice(id){
     // Amount-in-words and totals are one combined bordered block, fully inside A4.
     const invoiceTotal=Number(subtotal+tax);const combinedH=27;let blockY=rowY+5;
     if(blockY+combinedH>H-70){doc.addPage();blockY=18;rowY=blockY;}
-    const totalX=145,totalW=65;doc.setDrawColor(...line);doc.rect(margin,blockY,contentW,combinedH);doc.line(totalX,blockY,totalX,blockY+combinedH);doc.setFillColor(...light);doc.rect(totalX,blockY+16,totalW,11,'F');
+    const totalW=62,totalX=W-margin-totalW;doc.setDrawColor(...line);doc.rect(margin,blockY,contentW,combinedH);doc.line(totalX,blockY,totalX,blockY+combinedH);doc.setFillColor(...light);doc.rect(totalX,blockY+16,totalW,11,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);text('AMOUNT IN WORDS',margin+3,blockY+6);doc.setFont('helvetica','normal');doc.setFontSize(7.2);wrap(numberWordsIN(invoiceTotal),126,3).forEach((ln,i)=>text(ln,margin+3,blockY+12+i*4));
-    doc.setFont('helvetica','bold');doc.setFontSize(7.2);text('SUBTOTAL (TAXABLE)',totalX+3,blockY+6);text(money(subtotal),totalX+totalW-3,blockY+6,{align:'right'});text('GST',totalX+3,blockY+11);text(money(tax),totalX+totalW-3,blockY+11,{align:'right'});doc.setFontSize(9);text('GRAND TOTAL',totalX+3,blockY+23);text(money(invoiceTotal),totalX+totalW-3,blockY+23,{align:'right'});
+    doc.setFont('helvetica','bold');doc.setFontSize(7.2);text('SUBTOTAL (TAXABLE)',totalX+3,blockY+6);text(money(subtotal),totalX+totalW-3,blockY+6,{align:'right'});text('GST',totalX+3,blockY+11);text(money(tax),totalX+totalW-3,blockY+11,{align:'right'});doc.setFontSize(8.5);text('GRAND TOTAL',totalX+3,blockY+23);text(money(invoiceTotal),totalX+totalW-3,blockY+23,{align:'right'});
     y=blockY+32;
     // Payment box with dedicated QR area and explicit UPI ID.
     const payH=43; if(y+payH>H-35){doc.addPage();y=18;} doc.setDrawColor(...line);doc.rect(margin,y,contentW,payH);doc.line(151,y+5,151,y+payH-4);
