@@ -169,6 +169,10 @@ async function generateInvoice(id){
       if(!Number.isFinite(Number(x))||!Number.isFinite(Number(y))) return doc;
       if(Array.isArray(text)) text=text.map(v=>String(v??''));
       else text=String(text??'');
+      // jsPDF can reject an explicitly supplied undefined 4th argument.
+      // Only pass the options argument when it is actually present.
+      if(options===undefined && (!rest || rest.length===0)) return _pdfText(text,Number(x),Number(y));
+      if(options===undefined) return _pdfText(text,Number(x),Number(y),...rest);
       return _pdfText(text,Number(x),Number(y),options,...rest);
     };
     const W=210, H=297, margin=12, contentW=W-margin*2;
@@ -197,7 +201,7 @@ async function generateInvoice(id){
       if(rowY+rowH>H-70){doc.addPage();y=14;rowY=22;drawTableHeader();}
       doc.rect(margin,rowY,contentW,rowH);for(let i=1;i<cols.length-1;i++)doc.line(cols[i],rowY,cols[i],rowY+rowH);
       const vals=[String(idx+1),descLines,'',String(it.quantity||0),money(Number(it.unit_price||0)),money(taxable),gstRate+'%',money(lineTotal)]; if(it.hsn_sac)vals[2]=escPdf(it.hsn_sac);
-      vals.forEach((v,i)=>{if(i===1)doc.text(v,cols[i]+2,rowY+5);else doc.text(String(v),i===7?cols[i]+widths[i]-2:cols[i]+2,rowY+Math.min(6,rowH-3),i===7?{align:'right'}:undefined)}); rowY+=rowH;
+      vals.forEach((v,i)=>{if(i===1)doc.text(v,cols[i]+2,rowY+5);else i===7?doc.text(String(v),cols[i]+widths[i]-2,rowY+Math.min(6,rowH-3),{align:'right'}):doc.text(String(v),cols[i]+2,rowY+Math.min(6,rowH-3))}); rowY+=rowH;
     });
     if(rowY+42>H-50){doc.addPage();rowY=20;}
     doc.setFont('helvetica','bold');doc.text('Subtotal (Taxable)',154,rowY+6);doc.text(money(subtotal),198,rowY+6,{align:'right'});doc.text('GST',154,rowY+11);doc.text(money(tax),198,rowY+11,{align:'right'});doc.setFontSize(11);doc.text('GRAND TOTAL',154,rowY+19);const invoiceTotal=(items||[]).reduce((sum,it)=>sum+Number(it.total_price||Number(it.quantity||0)*Number(it.unit_price||0)),0);doc.text(money(invoiceTotal),198,rowY+19,{align:'right'});
