@@ -161,7 +161,17 @@ async function generateInvoice(id){
     const {jsPDF}=window.jspdf||{}; if(!jsPDF)throw Error('PDF library did not load. Please refresh the page.');
     const st=invoiceSettings();
     const seller={name:draft?.seller_name??st.seller_name??'PRACTICAL DENTAL SOLUTIONS (PDS)',phone:draft?.seller_phone??st.seller_phone??'90336 49953',email:draft?.seller_email??st.email??'',address:draft?.seller_address??st.address??'',gstin:draft?.seller_gstin??st.gstin??'',pan:draft?.seller_pan??st.pan??'',bank:draft?.bank??st.bank??'',account:draft?.account??st.account??'',ifsc:draft?.ifsc??st.ifsc??'',upi:draft?.upi??st.upi??'',qr_url:draft?.qr_url??st.qr_url??'',state:draft?.state??st.state??'Gujarat'};
-    const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210, H=297, margin=12, contentW=W-margin*2;
+    const doc=new jsPDF({unit:'mm',format:'a4'});
+    // Guard jsPDF.text against blank/undefined values and non-finite coordinates.
+    // Some jsPDF builds throw 'Invalid arguments passed to jsPDF.text' for these inputs.
+    const _pdfText=doc.text.bind(doc);
+    doc.text=(text,x,y,options,...rest)=>{
+      if(!Number.isFinite(Number(x))||!Number.isFinite(Number(y))) return doc;
+      if(Array.isArray(text)) text=text.map(v=>String(v??''));
+      else text=String(text??'');
+      return _pdfText(text,Number(x),Number(y),options,...rest);
+    };
+    const W=210, H=297, margin=12, contentW=W-margin*2;
     // Compact text header; no background image.
     doc.setTextColor(20,35,50); doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text(escPdf(seller.name||'PRACTICAL DENTAL SOLUTIONS (PDS)'),margin,14);
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.text('Quality. Consistency. Affordability.',margin,19);doc.text('DIGITAL LAB | MATERIAL | EDUCATION',margin,23);doc.text(seller.phone?'Ph: '+escPdf(seller.phone):'',margin,27);
@@ -196,7 +206,7 @@ async function generateInvoice(id){
     const payH=43;doc.rect(margin,y,contentW,payH);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('BANK / PAYMENT DETAILS',margin+3,y+6);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
     const pay=[seller.bank?'Bank: '+seller.bank:'',seller.account?'A/C: '+seller.account:'',seller.ifsc?'IFSC: '+seller.ifsc:'',seller.upi?'UPI ID: '+seller.upi:''].filter(Boolean);pay.forEach((t,i)=>doc.text(escPdf(t),margin+3,y+12+i*5));
     // QR code space on every invoice. If a URL is supplied, try to load it; otherwise leave a clean blank box.
-    const qx=154,qy=y+7,qw=34;doc.setDrawColor(160);doc.rect(qx,qy,qw,qw); if(seller.qr_url){try{const qr=new Image();qr.crossOrigin='anonymous';await new Promise((resolve,reject)=>{qr.onload=resolve;qr.onerror=reject;qr.src=seller.qr_url});doc.addImage(qr,'PNG',qx+1,qy+1,qw-2,qw-2)}catch(e){}}
+    const qx=154,qy=y+7,qw=34;doc.setDrawColor(160);doc.rect(qx,qy,qw,qw); if(seller.qr_url){try{const qr=new Image();qr.crossOrigin='anonymous';await new Promise((resolve,reject)=>{qr.onload=resolve;qr.onerror=reject;qr.src=seller.qr_url});try{doc.addImage(qr,'PNG',qx+1,qy+1,qw-2,qw-2)}catch(_e){try{doc.addImage(qr,qx+1,qy+1,qw-2,qw-2)}catch(__e){}}}catch(e){}}
     doc.setFontSize(6.5);doc.text('Scan / QR payment',171,qy+qw+5,{align:'center'});
     y+=payH+5; if(y+25>H-18){doc.addPage();y=18;} doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('NOTES',margin+3,y+5);doc.setFont('helvetica','normal');const noteLines=doc.splitTextToSize(draft?.notes||'This invoice is generated electronically for PDS Dental Store.',contentW-6);doc.text(noteLines.slice(0,4),margin+3,y+10);
     const pageCount=doc.getNumberOfPages();for(let pg=1;pg<=pageCount;pg++){doc.setPage(pg);doc.setFontSize(7);doc.setTextColor(100);doc.text('PRACTICAL DENTAL SOLUTIONS (PDS) · Quality. Consistency. Affordability.',W/2,289,{align:'center'});doc.text('Page '+pg+' of '+pageCount,W-margin,294,{align:'right'});doc.setTextColor(0)}
